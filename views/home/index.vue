@@ -1,0 +1,251 @@
+<template>
+  <el-row class="home" :gutter="20">
+    <el-col :span="8" style="margin-top: 20px">
+      <el-card shadow="hover">
+        <div class="user">
+          <img :src="userImg" alt="" />
+          <div class="userinfo">
+            <p class="name">Admin</p>
+            <p class="access">超级管理员</p>
+          </div>
+        </div>
+        <div class="login-info">
+          <p>上次登录时间：<span>2022-6-18</span></p>
+          <p>上次登录地点：<span>广东</span></p>
+        </div>
+      </el-card>
+      <el-card style="margin-top: 20px; height: 460px">
+        <el-table :data="tableData">
+          <el-table-column
+            v-for="(val, key) in tableLabel"
+            :key="key"
+            :prop="key"
+            :label="val"
+          ></el-table-column>
+        </el-table>
+      </el-card>
+    </el-col>
+    <el-col style="margin-top: 20px" :span="16">
+      <div class="num">
+        <el-card
+          v-for="item in countData"
+          :key="item.name"
+          :body-style="{ padding: 0 }"
+        >
+          <i
+            class="icon"
+            :class="`el-icon-${item.icon}`"
+            :style="{ background: item.color }"
+          ></i>
+          <div class="detail">
+            <p class="num">￥{{ item.value }}</p>
+            <p class="txt">{{ item.name }}</p>
+          </div>
+        </el-card>
+      </div>
+      <!-- 折线图 -->
+      <el-card style="height: 280px">
+        <div style="height: 280px" ref="echarts"></div>
+      </el-card>
+      <div class="graph">
+        <!-- 柱状图 -->
+        <el-card style="height: 260px">
+          <div style="height: 240px" ref="userEcharts"></div>
+        </el-card>
+        <!-- 饼图 -->
+        <el-card style="height: 260px">
+          <div style="height: 240px" ref="videoEcharts"></div>
+        </el-card>
+      </div>
+    </el-col>
+  </el-row>
+</template>
+
+<script>
+import { getData } from "../../api/data.js";
+import * as echarts from "echarts";
+export default {
+  name: "home",
+  data() {
+    return {
+      userImg: require("../../src/assets/images/user2.png"),
+      tableData: [],
+      tableLabel: {
+        name: "课程",
+        todayBuy: "今日购买",
+        monthBuy: "本月购买",
+        totalBuy: "总购买",
+      },
+      countData: [
+        {
+          name: "今日支付订单",
+          value: 1234,
+          icon: "success",
+          color: "#2ec7c9",
+        },
+        {
+          name: "今日收藏订单",
+          value: 210,
+          icon: "star-on",
+          color: "#ffb980",
+        },
+        {
+          name: "今日未支付订单",
+          value: 1234,
+          icon: "s-goods",
+          color: "#5ab1ef",
+        },
+        {
+          name: "本月支付订单",
+          value: 1234,
+          icon: "success",
+          color: "#2ec7c9",
+        },
+        {
+          name: "本月收藏订单",
+          value: 210,
+          icon: "star-on",
+          color: "#ffb980",
+        },
+        {
+          name: "本月未支付订单",
+          value: 1234,
+          icon: "s-goods",
+          color: "#5ab1ef",
+        },
+      ],
+    };
+  },
+  mounted() {
+    getData().then((res) => {
+      const { code, data } = res.data;
+      if (code === 20000) {
+        this.tableData = data.tableData;
+        const order = data.orderData;
+        // 使用 Object.keys 方法拿到接口返回数据的 data.orderData.data[0] 的所有可枚举属性
+        // oppo、vivo、三星、小米、苹果、魅族
+        const keyArray = Object.keys(order.data[0]);
+        const series = [];
+        keyArray.forEach((key) => {
+          series.push({
+            name: key,
+            // 图的类别
+            type: "line",
+            // 返回 order.data 的
+            data: order.data.map((item) => item[key]),
+          });
+        });
+        // 折线图
+        const option = {
+          // x轴坐标
+          xAxis: {
+            data: order.date,
+          },
+          // y轴坐标，可以为空
+          yAxis: {},
+          // 顶部图例
+          legend: {
+            data: keyArray,
+          },
+          // 数据
+          series,
+        };
+        // 通过$ref获取DOM节点，echarts初始化
+        const E = echarts.init(this.$refs.echarts);
+        // 绘图
+        E.setOption(option);
+
+        // 用户图
+        const userOption = {
+          legend: {
+            // 图例文字颜色
+            textStyle: {
+              color: "#333",
+            },
+          },
+          grid: {
+            left: "20%",
+          },
+          // 提示框
+          tooltip: {
+            trigger: "axis",
+          },
+          xAxis: {
+            type: "category", // 类目轴
+            data: data.userData.map((item) => item.date),
+            axisLine: {
+              lineStyle: {
+                color: "#17b3a3",
+              },
+            },
+            axisLabel: {
+              interval: 0,
+              color: "#333",
+            },
+          },
+          yAxis: [
+            {
+              type: "value",
+              axisLine: {
+                lineStyle: {
+                  color: "#17b3a3",
+                },
+              },
+            },
+          ],
+          color: ["#2ec7c9", "#b6a2de"],
+          series: [
+            {
+              name: "新增用户",
+              data: data.userData.map((item) => item.new),
+              type: "bar",
+            },
+            {
+              name: "活跃用户",
+              data: data.userData.map((item) => item.active),
+              type: "bar",
+            },
+          ],
+        };
+        // 通过$ref获取DOM节点，echarts初始化
+        const U = echarts.init(this.$refs.userEcharts);
+        // 绘图
+        U.setOption(userOption);
+
+        // 饼图
+        const videoOption = {
+          tooltip: {
+            trigger: "item",
+          },
+          color: [
+            "#0f78f4",
+            "#dd536b",
+            "#9462e5",
+            "#a6a6a6",
+            "#e1bb22",
+            "#39c362",
+            "#3ed1cf",
+          ],
+          series: [
+            {
+              data: data.videoData,
+              type: "pie",
+            },
+          ],
+        };
+        // 通过$ref获取DOM节点，echarts初始化
+        const V = echarts.init(this.$refs.videoEcharts);
+        // 绘图
+        V.setOption(videoOption);
+      }
+      console.log(res);
+    });
+  },
+};
+</script>
+
+<style lang="css">
+.num .el-card .el-card__body {
+  display: flex;
+}
+</style>
